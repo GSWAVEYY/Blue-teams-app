@@ -19,10 +19,17 @@ class Game {
         // Set first member as controlled
         this.squad.switchToMember(0);
 
-        // Create guards
+        // Create guards with mixed types for tactical gameplay
         this.guards = [];
-        for (let spawnPoint of this.level.spawnPoints.guards) {
-            this.guards.push(new Guard(this.level, spawnPoint));
+        const guardTypes = [
+            GUARD_TYPE.PATROL_LEADER,  // First guard is a communicator
+            GUARD_TYPE.STANDARD,
+            GUARD_TYPE.AGGRESSIVE
+        ];
+        for (let i = 0; i < this.level.spawnPoints.guards.length; i++) {
+            const spawnPoint = this.level.spawnPoints.guards[i];
+            const type = guardTypes[i] || GUARD_TYPE.STANDARD;
+            this.guards.push(new AdvancedGuard(this.level, spawnPoint, type));
         }
 
         // Command wheel
@@ -90,25 +97,13 @@ class Game {
         // Update squad
         this.squad.update();
 
-        // Update guards (check all squad members for detection)
+        // Update guards with advanced AI (pass all squad members and other guards)
         let maxAlert = 0;
+        const activePlayers = this.squad.members.filter(m => !m.isDown);
+
         for (let guard of this.guards) {
-            let nearestMember = null;
-            let nearestDist = Infinity;
-
-            for (let member of this.squad.members) {
-                if (!member.isDown) {
-                    const dist = Math.hypot(member.x - guard.x, member.y - guard.y);
-                    if (dist < nearestDist) {
-                        nearestMember = member;
-                        nearestDist = dist;
-                    }
-                }
-            }
-
-            if (nearestMember) {
-                guard.update(nearestMember);
-            }
+            // Use advanced detection with all visible squad members
+            guard.update(activePlayers, this.guards);
             maxAlert = Math.max(maxAlert, guard.getAlertLevel());
         }
 
@@ -314,6 +309,71 @@ class Game {
             this.ctx.font = "8px Arial";
             this.ctx.fillText(ctrl, padding + 10, ctrlY);
             ctrlY += 10;
+        }
+
+        // Draw enemy/guard status panel (right side of screen)
+        this.drawGuardStatusPanel();
+    }
+
+    /**
+     * Draw guard intelligence panel on right side of screen
+     */
+    drawGuardStatusPanel() {
+        const padding = 10;
+        const panelWidth = 220;
+        const panelX = this.canvas.width - panelWidth - padding;
+        let panelY = padding;
+
+        // Panel background
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        this.ctx.fillRect(panelX, panelY, panelWidth, this.guards.length * 50 + 30);
+
+        // Title
+        this.ctx.fillStyle = "#ff6b6b";
+        this.ctx.font = "11px Arial";
+        this.ctx.textAlign = "left";
+        this.ctx.fillText("THREAT ASSESSMENT", panelX + 10, panelY + 15);
+
+        // Guard status
+        let guardY = panelY + 25;
+        for (let i = 0; i < this.guards.length; i++) {
+            const guard = this.guards[i];
+
+            // Guard background
+            this.ctx.fillStyle = guard.state === GUARD_STATE.HUNTING ? "rgba(255, 100, 100, 0.1)" :
+                                 guard.state === GUARD_STATE.ALERT ? "rgba(255, 170, 0, 0.1)" :
+                                 "rgba(0, 0, 0, 0.2)";
+            this.ctx.fillRect(panelX + 5, guardY - 10, panelWidth - 10, 45);
+
+            // Guard type icon
+            const typeIcon = guard.type === GUARD_TYPE.AGGRESSIVE ? "●●" :
+                            guard.type === GUARD_TYPE.PATROL_LEADER ? "◈" :
+                            guard.type === GUARD_TYPE.STATIONARY ? "■" : "◯";
+
+            this.ctx.fillStyle = "#ffaaaa";
+            this.ctx.font = "9px Arial";
+            this.ctx.fillText(`Guard ${i + 1} ${typeIcon}`, panelX + 10, guardY);
+
+            // Guard state
+            const stateColor = guard.state === GUARD_STATE.HUNTING ? "#ff4444" :
+                              guard.state === GUARD_STATE.ALERT ? "#ffaa44" :
+                              guard.state === GUARD_STATE.SUSPICIOUS ? "#ffff44" : "#888888";
+            this.ctx.fillStyle = stateColor;
+            this.ctx.font = "8px Arial";
+            this.ctx.fillText(`State: ${guard.state.toUpperCase()}`, panelX + 10, guardY + 12);
+
+            // Alert level bar
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            this.ctx.fillRect(panelX + 10, guardY + 18, 80, 6);
+            this.ctx.fillStyle = stateColor;
+            this.ctx.fillRect(panelX + 10, guardY + 18, 80 * (guard.alertLevel / 100), 6);
+
+            // Memory indicator
+            this.ctx.fillStyle = "#4ecdc4";
+            this.ctx.font = "8px Arial";
+            this.ctx.fillText(`Mem: ${guard.memory.threatMemory.length}`, panelX + 100, guardY + 12);
+
+            guardY += 50;
         }
     }
 
