@@ -297,11 +297,19 @@ class SquadMember extends Player {
         this.heatLevel = 0;
         this.detectionTime = 0;
 
-        this.abilities = { ...this.role.abilities };
-        this.abilityCooldowns = {};
-        for (let ability of this.abilities) {
-            this.abilityCooldowns[ability.id] = 0;
-        }
+        // Initialize ability system
+        const roleAbilities = RoleSystem.createAbilitiesForRole(role);
+        this.abilityManager = new AbilityManager(roleAbilities);
+
+        // Bonuses and state tracking
+        this.interactionSpeedBonus = 1.0;
+        this.focusedActionTimer = 0;
+        this.shadowStepActive = 0;
+        this.markedTargets = [];
+        this.droneActive = false;
+        this.droneTimer = 0;
+        this.adaptedRole = null;
+        this.lastSmoke = null;
 
         this.currentCommand = null;
         this.commandTimer = 0;
@@ -333,11 +341,30 @@ class SquadMember extends Player {
             this.updateAI();
         }
 
-        // Update cooldowns
-        for (let abilityId in this.abilityCooldowns) {
-            if (this.abilityCooldowns[abilityId] > 0) {
-                this.abilityCooldowns[abilityId]--;
+        // Update ability system
+        this.abilityManager.update();
+
+        // Update ability-related timers
+        if (this.focusedActionTimer > 0) {
+            this.focusedActionTimer--;
+            if (this.focusedActionTimer <= 0) {
+                this.interactionSpeedBonus = 1.0;
             }
+        }
+
+        if (this.shadowStepActive > 0) {
+            this.shadowStepActive--;
+        }
+
+        if (this.droneActive && this.droneTimer > 0) {
+            this.droneTimer--;
+            if (this.droneTimer <= 0) {
+                this.droneActive = false;
+            }
+        }
+
+        if (this.lastSmoke && this.lastSmoke.timeRemaining > 0) {
+            this.lastSmoke.timeRemaining--;
         }
 
         // Update heat level
@@ -428,15 +455,38 @@ class SquadMember extends Player {
         this.downTimer = 0;
     }
 
-    useAbility(abilityId) {
-        const ability = this.abilities.find(a => a.id === abilityId);
-        if (!ability || this.abilityCooldowns[abilityId] > 0) {
-            return false;
-        }
+    /**
+     * Execute an ability by ID
+     */
+    useAbility(abilityId, target = null) {
+        return this.abilityManager.executeAbility(abilityId, this, target);
+    }
 
-        // Execute ability effect
-        this.abilityCooldowns[abilityId] = ability.cooldown;
-        return true;
+    /**
+     * Get all abilities for UI display
+     */
+    getAbilitiesUI() {
+        return this.abilityManager.getAbilitiesForUI();
+    }
+
+    /**
+     * Display ability feedback message
+     */
+    displayAbilityFeedback(message, color = "#00ff88") {
+        this.lastAbilityMessage = {
+            text: message,
+            color: color,
+            timer: 60 // Display for 1 second at 60fps
+        };
+    }
+
+    /**
+     * Check if a specific ability is ready to use
+     */
+    canUseAbility(abilityId) {
+        const ability = this.abilityManager.getAbility(abilityId);
+        if (!ability) return false;
+        return ability.canExecute(this);
     }
 
     draw(ctx) {

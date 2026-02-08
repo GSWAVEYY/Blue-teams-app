@@ -1,3 +1,8 @@
+/**
+ * Role System with Ability Integration
+ * Defines role archetypes with stats and abilities
+ */
+
 const ROLES = {
     INFILTRATOR: {
         name: "Infiltrator",
@@ -12,32 +17,14 @@ const ROLES = {
             interactionSpeed: 1.3,
             detectionTime: 60
         },
-        abilities: [
-            {
-                id: "lockpick",
-                name: "Lockpick",
-                description: "Open locked doors",
-                cooldown: 0,
-                charges: 3
-            },
-            {
-                id: "silentTakedown",
-                name: "Silent Takedown",
-                description: "Non-lethal takedown if behind guard",
-                cooldown: 30,
-                charges: 0
-            },
-            {
-                id: "invisibleMovement",
-                name: "Shadow Step",
-                description: "Briefly become harder to detect",
-                cooldown: 45,
-                charges: 0
-            }
-        ],
         equipment: ["lockpicks", "sound dampener", "disguise"],
         startingAmmo: 60,
-        startingHealth: 80
+        startingHealth: 80,
+        createAbilities: () => [
+            new Lockpick(),
+            new SilentTakedown(),
+            new ShadowStep()
+        ]
     },
 
     OPERATOR: {
@@ -53,32 +40,14 @@ const ROLES = {
             interactionSpeed: 1.8,
             detectionTime: 45
         },
-        abilities: [
-            {
-                id: "focusedAction",
-                name: "Focused Action",
-                description: "Complete objectives 80% faster",
-                cooldown: 60,
-                charges: 0
-            },
-            {
-                id: "deviceControl",
-                name: "Device Control",
-                description: "Interact with electronic devices remotely",
-                cooldown: 30,
-                charges: 0
-            },
-            {
-                id: "targetMarking",
-                name: "Mark Target",
-                description: "Mark guards for team visualization",
-                cooldown: 0,
-                charges: 0
-            }
-        ],
         equipment: ["tablet", "breaching charge", "emp device"],
         startingAmmo: 90,
-        startingHealth: 100
+        startingHealth: 100,
+        createAbilities: () => [
+            new FocusedAction(),
+            new DeviceControl(),
+            new TargetMarking()
+        ]
     },
 
     SUPPORT: {
@@ -94,32 +63,14 @@ const ROLES = {
             interactionSpeed: 1.2,
             detectionTime: 50
         },
-        abilities: [
-            {
-                id: "revive",
-                name: "Revive",
-                description: "Bring down teammate back to action",
-                cooldown: 60,
-                charges: 0
-            },
-            {
-                id: "resourceShare",
-                name: "Share Ammo",
-                description: "Give ammo or health to teammate",
-                cooldown: 15,
-                charges: 0
-            },
-            {
-                id: "smokeScreen",
-                name: "Smoke Grenade",
-                description: "Deploy smoke for cover",
-                cooldown: 45,
-                charges: 3
-            }
-        ],
         equipment: ["medkit", "ammo pouch", "smoke grenades"],
         startingAmmo: 75,
-        startingHealth: 110
+        startingHealth: 110,
+        createAbilities: () => [
+            new Revive(),
+            new ResourceShare(),
+            new SmokeGrenade()
+        ]
     },
 
     SPECIALIST: {
@@ -135,35 +86,20 @@ const ROLES = {
             interactionSpeed: 1.4,
             detectionTime: 50
         },
-        abilities: [
-            {
-                id: "adaptiveGear",
-                name: "Adapt Gear",
-                description: "Switch between specialist loadout roles",
-                cooldown: 90,
-                charges: 0
-            },
-            {
-                id: "hacking",
-                name: "Hack System",
-                description: "Disable alarms and cameras",
-                cooldown: 40,
-                charges: 0
-            },
-            {
-                id: "surveillance",
-                name: "Drone Recon",
-                description: "Scout area with mini-drone",
-                cooldown: 60,
-                charges: 2
-            }
-        ],
         equipment: ["hacking kit", "drone", "multi-tool"],
         startingAmmo: 80,
-        startingHealth: 95
+        startingHealth: 95,
+        createAbilities: () => [
+            new AdaptiveGear(),
+            new HackSystem(),
+            new DroneRecon()
+        ]
     }
 };
 
+/**
+ * Role System - Centralized role management
+ */
 class RoleSystem {
     static getRole(roleType) {
         return ROLES[roleType] || ROLES.SPECIALIST;
@@ -178,9 +114,24 @@ class RoleSystem {
         character.role = role;
     }
 
+    static createAbilitiesForRole(roleType) {
+        const role = this.getRole(roleType);
+        if (!role || !role.createAbilities) return [];
+        return role.createAbilities();
+    }
+
     static getAbility(roleType, abilityId) {
-        const role = ROLES[roleType];
-        if (!role) return null;
-        return role.abilities.find(a => a.id === abilityId);
+        const abilities = this.createAbilitiesForRole(roleType);
+        return abilities.find(a => a.id === abilityId);
+    }
+
+    static getRoleStats(roleType) {
+        const role = this.getRole(roleType);
+        return role ? role.stats : {};
+    }
+
+    static getRoleEquipment(roleType) {
+        const role = this.getRole(roleType);
+        return role ? role.equipment : [];
     }
 }

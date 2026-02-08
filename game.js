@@ -1,9 +1,15 @@
 class Game {
-    constructor() {
+    constructor(missionId = "training_facility") {
         this.canvas = document.getElementById("gameCanvas");
         this.ctx = this.canvas.getContext("2d");
 
-        this.level = new Level();
+        // Initialize mission system
+        this.missionManager = new MissionManager();
+        const mission = this.missionManager.startMission(missionId);
+
+        // Build level from mission
+        this.level = MissionLevelBuilder.buildLevelFromMission(mission);
+        this.mission = mission;
         this.level.game = this; // Reference for guards
 
         // Create squad
@@ -19,10 +25,11 @@ class Game {
         // Set first member as controlled
         this.squad.switchToMember(0);
 
-        // Create guards
+        // Create guards from mission data
         this.guards = [];
         for (let spawnPoint of this.level.spawnPoints.guards) {
-            this.guards.push(new Guard(this.level, spawnPoint));
+            const guardType = spawnPoint.type || GUARD_TYPE.STANDARD;
+            this.guards.push(new AdvancedGuard(this.level, spawnPoint, guardType));
         }
 
         // Command wheel
@@ -38,6 +45,9 @@ class Game {
         this.setupInput();
         window.gameInstance = this; // For command wheel
 
+        // Display mission briefing
+        this.displayStatus(`MISSION: ${this.mission.name}\n${this.mission.briefing}`, "#4ecdc4");
+
         this.run();
     }
 
@@ -46,6 +56,28 @@ class Game {
             if (e.key === "c" || e.key === "C") {
                 e.preventDefault();
                 this.commandWheel.toggleCommandWheel();
+                return;
+            }
+
+            // Ability hotkeys (if command wheel is not open)
+            if (!this.commandWheel.isActive && this.squad) {
+                const active = this.squad.getActiveMember();
+                if (!active) return;
+
+                const abilityMap = {
+                    "z": 0, // First ability
+                    "x": 1, // Second ability
+                    "v": 2  // Third ability
+                };
+
+                const abilityIndex = abilityMap[e.key.toLowerCase()];
+                if (abilityIndex !== undefined) {
+                    e.preventDefault();
+                    const abilities = active.abilityManager.abilities;
+                    if (abilities[abilityIndex]) {
+                        active.useAbility(abilities[abilityIndex].id);
+                    }
+                }
             }
         });
 
@@ -68,25 +100,13 @@ class Game {
         // Update squad
         this.squad.update();
 
-        // Update guards (check all squad members for detection)
+        // Update guards with advanced AI (pass all squad members and other guards)
         let maxAlert = 0;
+        const activePlayers = this.squad.members.filter(m => !m.isDown);
+
         for (let guard of this.guards) {
-            let nearestMember = null;
-            let nearestDist = Infinity;
-
-            for (let member of this.squad.members) {
-                if (!member.isDown) {
-                    const dist = Math.hypot(member.x - guard.x, member.y - guard.y);
-                    if (dist < nearestDist) {
-                        nearestDember = member;
-                        nearestDist = dist;
-                    }
-                }
-            }
-
-            if (nearestMember) {
-                guard.update(nearestMember);
-            }
+            // Use advanced detection with all visible squad members
+            guard.update(activePlayers, this.guards);
             maxAlert = Math.max(maxAlert, guard.getAlertLevel());
         }
 
@@ -110,7 +130,13 @@ class Game {
 
         if (allObjectivesComplete && this.heatLevel < 50) {
             this.gameState = "won";
-            this.displayStatus("Mission complete! Escaped undetected.", "#00ff00");
+            this.displayStatus(`Mission "${this.mission.name}" complete! Escaped undetected.`, "#00ff00");
+
+            // Record mission completion
+            this.missionManager.completeMission({
+                time: this.gameTime,
+                finalHeat: this.heatLevel
+            });
         }
 
         // Update UI
@@ -213,8 +239,44 @@ class Game {
         detY += 14;
         this.ctx.fillText(`Formation: ${this.squad.formation.toUpperCase()}`, padding + 10, detY);
 
+        // Draw abilities panel
+        const abilitiesY = detailedY + detailedHeight + 20;
+        const abilitiesHeight = 110;
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        this.ctx.fillRect(padding, abilitiesY, 200, abilitiesHeight);
+
+        this.ctx.fillStyle = "#c14eca";
+        this.ctx.font = "11px Arial";
+        this.ctx.fillText("ABILITIES (Z/X/V):", padding + 10, abilitiesY + 15);
+
+        const abilities = active.abilityManager.abilities;
+        let abilityY = abilitiesY + 28;
+        for (let i = 0; i < Math.min(3, abilities.length); i++) {
+            const ability = abilities[i];
+            const hotkey = ["Z", "X", "V"][i];
+            const isReady = ability.state === ABILITY_STATE.READY;
+            const cooldownPercent = ability.currentCooldown / ability.cooldown;
+
+            // Ability background
+            this.ctx.fillStyle = isReady ? "rgba(193, 78, 202, 0.2)" : "rgba(0, 0, 0, 0.3)";
+            this.ctx.fillRect(padding + 5, abilityY - 10, 190, 24);
+
+            // Ability name and hotkey
+            this.ctx.fillStyle = isReady ? "#c14eca" : "#888888";
+            this.ctx.font = "9px Arial";
+            this.ctx.fillText(`[${hotkey}] ${ability.name}`, padding + 10, abilityY);
+
+            // Cooldown bar
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            this.ctx.fillRect(padding + 115, abilityY - 6, 75, 8);
+            this.ctx.fillStyle = isReady ? "#00ff88" : "#ff6b6b";
+            this.ctx.fillRect(padding + 115, abilityY - 6, 75 * (1 - cooldownPercent), 8);
+
+            abilityY += 25;
+        }
+
         // Draw formation selector
-        const formationY = detailedY + detailedHeight + 20;
+        const formationY = abilitiesY + abilitiesHeight + 10;
         this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
         this.ctx.fillRect(padding, formationY, 200, 60);
 
@@ -257,6 +319,71 @@ class Game {
             this.ctx.fillText(ctrl, padding + 10, ctrlY);
             ctrlY += 10;
         }
+
+        // Draw enemy/guard status panel (right side of screen)
+        this.drawGuardStatusPanel();
+    }
+
+    /**
+     * Draw guard intelligence panel on right side of screen
+     */
+    drawGuardStatusPanel() {
+        const padding = 10;
+        const panelWidth = 220;
+        const panelX = this.canvas.width - panelWidth - padding;
+        let panelY = padding;
+
+        // Panel background
+        this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+        this.ctx.fillRect(panelX, panelY, panelWidth, this.guards.length * 50 + 30);
+
+        // Title
+        this.ctx.fillStyle = "#ff6b6b";
+        this.ctx.font = "11px Arial";
+        this.ctx.textAlign = "left";
+        this.ctx.fillText("THREAT ASSESSMENT", panelX + 10, panelY + 15);
+
+        // Guard status
+        let guardY = panelY + 25;
+        for (let i = 0; i < this.guards.length; i++) {
+            const guard = this.guards[i];
+
+            // Guard background
+            this.ctx.fillStyle = guard.state === GUARD_STATE.HUNTING ? "rgba(255, 100, 100, 0.1)" :
+                                 guard.state === GUARD_STATE.ALERT ? "rgba(255, 170, 0, 0.1)" :
+                                 "rgba(0, 0, 0, 0.2)";
+            this.ctx.fillRect(panelX + 5, guardY - 10, panelWidth - 10, 45);
+
+            // Guard type icon
+            const typeIcon = guard.type === GUARD_TYPE.AGGRESSIVE ? "●●" :
+                            guard.type === GUARD_TYPE.PATROL_LEADER ? "◈" :
+                            guard.type === GUARD_TYPE.STATIONARY ? "■" : "◯";
+
+            this.ctx.fillStyle = "#ffaaaa";
+            this.ctx.font = "9px Arial";
+            this.ctx.fillText(`Guard ${i + 1} ${typeIcon}`, panelX + 10, guardY);
+
+            // Guard state
+            const stateColor = guard.state === GUARD_STATE.HUNTING ? "#ff4444" :
+                              guard.state === GUARD_STATE.ALERT ? "#ffaa44" :
+                              guard.state === GUARD_STATE.SUSPICIOUS ? "#ffff44" : "#888888";
+            this.ctx.fillStyle = stateColor;
+            this.ctx.font = "8px Arial";
+            this.ctx.fillText(`State: ${guard.state.toUpperCase()}`, panelX + 10, guardY + 12);
+
+            // Alert level bar
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            this.ctx.fillRect(panelX + 10, guardY + 18, 80, 6);
+            this.ctx.fillStyle = stateColor;
+            this.ctx.fillRect(panelX + 10, guardY + 18, 80 * (guard.alertLevel / 100), 6);
+
+            // Memory indicator
+            this.ctx.fillStyle = "#4ecdc4";
+            this.ctx.font = "8px Arial";
+            this.ctx.fillText(`Mem: ${guard.memory.threatMemory.length}`, panelX + 100, guardY + 12);
+
+            guardY += 50;
+        }
     }
 
     updateUI() {
@@ -269,7 +396,9 @@ class Game {
 
         const active = this.squad.getActiveMember();
         const activeName = active ? active.role.name : "Unknown";
-        document.getElementById("objectiveText").textContent = `${activeName} | (${objectiveCount}/${this.level.objectives.length}) Complete`;
+        const missionName = this.mission ? this.mission.name : "Unknown Mission";
+        const difficulty = this.mission ? this.missionManager.getDifficultyRating(this.mission.difficulty) : "";
+        document.getElementById("objectiveText").textContent = `${missionName} ${difficulty} | ${activeName} | (${objectiveCount}/${this.level.objectives.length})`;
     }
 
     displayStatus(message, color) {
