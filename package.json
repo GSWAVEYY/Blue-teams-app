@@ -1,0 +1,19 @@
+{
+  "name": "heist-master",
+  "version": "0.1.0",
+  "description": "A Hitman/Payday-style stealth heist strategy game built with vanilla JavaScript and HTML5 Canvas",
+  "main": "index.html",
+  "scripts": {
+    "start": "open index.html",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": [
+    "game",
+    "stealth",
+    "heist",
+    "strategy",
+    "canvas"
+  ],
+  "author": "",
+  "license": "MIT"
+}
