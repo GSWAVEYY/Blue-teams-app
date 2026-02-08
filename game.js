@@ -1,9 +1,15 @@
 class Game {
-    constructor() {
+    constructor(missionId = "training_facility") {
         this.canvas = document.getElementById("gameCanvas");
         this.ctx = this.canvas.getContext("2d");
 
-        this.level = new Level();
+        // Initialize mission system
+        this.missionManager = new MissionManager();
+        const mission = this.missionManager.startMission(missionId);
+
+        // Build level from mission
+        this.level = MissionLevelBuilder.buildLevelFromMission(mission);
+        this.mission = mission;
         this.level.game = this; // Reference for guards
 
         // Create squad
@@ -19,17 +25,11 @@ class Game {
         // Set first member as controlled
         this.squad.switchToMember(0);
 
-        // Create guards with mixed types for tactical gameplay
+        // Create guards from mission data
         this.guards = [];
-        const guardTypes = [
-            GUARD_TYPE.PATROL_LEADER,  // First guard is a communicator
-            GUARD_TYPE.STANDARD,
-            GUARD_TYPE.AGGRESSIVE
-        ];
-        for (let i = 0; i < this.level.spawnPoints.guards.length; i++) {
-            const spawnPoint = this.level.spawnPoints.guards[i];
-            const type = guardTypes[i] || GUARD_TYPE.STANDARD;
-            this.guards.push(new AdvancedGuard(this.level, spawnPoint, type));
+        for (let spawnPoint of this.level.spawnPoints.guards) {
+            const guardType = spawnPoint.type || GUARD_TYPE.STANDARD;
+            this.guards.push(new AdvancedGuard(this.level, spawnPoint, guardType));
         }
 
         // Command wheel
@@ -44,6 +44,9 @@ class Game {
         // Setup input
         this.setupInput();
         window.gameInstance = this; // For command wheel
+
+        // Display mission briefing
+        this.displayStatus(`MISSION: ${this.mission.name}\n${this.mission.briefing}`, "#4ecdc4");
 
         this.run();
     }
@@ -127,7 +130,13 @@ class Game {
 
         if (allObjectivesComplete && this.heatLevel < 50) {
             this.gameState = "won";
-            this.displayStatus("Mission complete! Escaped undetected.", "#00ff00");
+            this.displayStatus(`Mission "${this.mission.name}" complete! Escaped undetected.`, "#00ff00");
+
+            // Record mission completion
+            this.missionManager.completeMission({
+                time: this.gameTime,
+                finalHeat: this.heatLevel
+            });
         }
 
         // Update UI
@@ -387,7 +396,9 @@ class Game {
 
         const active = this.squad.getActiveMember();
         const activeName = active ? active.role.name : "Unknown";
-        document.getElementById("objectiveText").textContent = `${activeName} | (${objectiveCount}/${this.level.objectives.length}) Complete`;
+        const missionName = this.mission ? this.mission.name : "Unknown Mission";
+        const difficulty = this.mission ? this.missionManager.getDifficultyRating(this.mission.difficulty) : "";
+        document.getElementById("objectiveText").textContent = `${missionName} ${difficulty} | ${activeName} | (${objectiveCount}/${this.level.objectives.length})`;
     }
 
     displayStatus(message, color) {
