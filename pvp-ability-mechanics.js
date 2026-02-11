@@ -899,6 +899,9 @@ class HeroAbilitySystem {
             case "Talen":
                 this.applyTalenAbility(hero, abilityKey, target, targetX, targetY, vfx);
                 break;
+            case "Petra":
+                this.applyPetraAbility(hero, abilityKey, target, vfx);
+                break;
             // Add more as implemented
         }
     }
@@ -1340,6 +1343,74 @@ class HeroAbilitySystem {
 
                     // Consume all cascade stacks
                     hero.cascadeStacks = 0;
+                }
+                break;
+        }
+    }
+
+    /**
+     * PETRA - The Holy Healer (Support/Healer)
+     * Playstyle: Healing and protection through direct support
+     * Difficulty: Easy - straightforward healing mechanics
+     * Personality: Warm, nurturing - "I will not let you fall"
+     */
+    static applyPetraAbility(hero, abilityKey, target, vfx = null) {
+        const abilities = PETRA_ABILITIES;
+
+        switch (abilityKey) {
+            case "q":
+                // Heal Burst - Direct single target heal with area bonus
+                if (target) {
+                    const healAmount = abilities.q.healing(hero);
+                    target.health = Math.min(target.maxHealth, target.health + healAmount);
+
+                    // Grant movement speed buff
+                    const speedBuff = new AbilityEffect("buff_speed", 3, 0.2);
+                    speedBuff.apply(target);
+
+                    // Area healing for nearby allies (half effectiveness)
+                    // In real implementation, would find all allies in radius
+                    if (hero.team === target.team) {
+                        hero.cooldownReduction = Math.min(20, (hero.cooldownReduction || 0) + 5);
+                    }
+
+                    if (vfx) {
+                        vfx.healEffect(target.x, target.y, "#00ff88");
+                        vfx.damageNumber(target.x, target.y - 30, `+${Math.floor(healAmount)}`, "#00ff88");
+                    }
+                }
+                break;
+
+            case "e":
+                // Protective Shield - Grant shield to target
+                if (target) {
+                    const shieldAmount = abilities.e.shieldAmount(hero);
+                    target.shield = (target.shield || 0) + shieldAmount;
+
+                    if (vfx) {
+                        vfx.shieldEffect(target.x, target.y);
+                    }
+                }
+                break;
+
+            case "r":
+                // Mass Heal - Heal entire team + cleanse CC
+                // In real implementation, would heal all team members
+                if (target) {
+                    const healAmount = abilities.r.healing(hero);
+                    target.health = Math.min(target.maxHealth, target.health + healAmount);
+
+                    // Cleanse CC effects
+                    if (abilities.r.cleansesCC) {
+                        target.isStunned = false;
+                        target.slowFactor = 1.0;
+                    }
+
+                    if (vfx) {
+                        vfx.burstEffect(target.x, target.y, "rgba(0, 255, 136, 0.8)", 25, 360, 1.0);
+                        vfx.healEffect(target.x, target.y, "#00ff88");
+                        vfx.damageNumber(target.x, target.y - 30, `+${Math.floor(healAmount)}`, "#00ff88");
+                    }
                 }
                 break;
         }
