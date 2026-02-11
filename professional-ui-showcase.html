@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS Professional UI Showcase</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0e27;
+            color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            min-height: 100vh;
+        }
+
+        .nav-bar {
+            background: rgba(0, 212, 255, 0.1);
+            border-bottom: 2px solid #00d4ff;
+            padding: 16px 24px;
+            display: flex;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-button {
+            background: rgba(26, 31, 58, 0.5);
+            border: 2px solid #9d4edd;
+            color: #9d4edd;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .nav-button:hover,
+        .nav-button.active {
+            background: #9d4edd;
+            color: #ffffff;
+            border-color: #9d4edd;
+        }
+
+        .container {
+            display: none;
+        }
+
+        .container.active {
+            display: flex;
+            width: 100%;
+            height: calc(100vh - 70px);
+        }
+
+        .info-panel {
+            background: rgba(0, 212, 255, 0.08);
+            border-right: 2px solid #00d4ff;
+            padding: 24px;
+            width: 300px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .info-panel h2 {
+            color: #00d4ff;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        .info-panel p {
+            color: #cccccc;
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            background: rgba(157, 78, 221, 0.1);
+            border: 1px solid #9d4edd;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .feature-list li {
+            color: #9d4edd;
+            margin-bottom: 6px;
+            margin-left: 16px;
+        }
+
+        .preview-area {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .back-button {
+            background: rgba(0, 212, 255, 0.2);
+            border: 2px solid #00d4ff;
+            color: #00d4ff;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            background: #00d4ff;
+            color: #1a1f3a;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .info-panel {
+                width: 250px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav-bar {
+                flex-wrap: wrap;
+            }
+
+            .info-panel {
+                display: none;
+            }
+
+            .preview-area {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="nav-bar">
+        <button class="nav-button active" onclick="switchView('landing')">🏠 Landing Page</button>
+        <button class="nav-button" onclick="switchView('lobby')">🎮 Team Lobby</button>
+        <button class="nav-button" onclick="switchView('design')">📐 Design Guide</button>
+    </div>
+
+    <!-- Landing Page View -->
+    <div id="landing" class="container active">
+        <div class="info-panel">
+            <h2>🏠 Landing Page</h2>
+            <p>The main entry point for NEXUS, featuring:</p>
+            <ul class="feature-list">
+                <li>User profile & progression</li>
+                <li>Match history display</li>
+                <li>Main hero statistics</li>
+                <li>Recent news & updates</li>
+                <li>Quick game mode selection</li>
+                <li>Season progression bar</li>
+                <li>Ranked tier display</li>
+            </ul>
+            <p style="margin-top: 20px; color: #ffd700;">Design Principles:</p>
+            <p>✓ Clear information hierarchy<br/>✓ Quick access to play<br/>✓ User progression visible<br/>✓ Recent activity prominent<br/>✓ 2-column responsive layout</p>
+        </div>
+        <div class="preview-area" id="landing-preview"></div>
+    </div>
+
+    <!-- Lobby View -->
+    <div id="lobby" class="container">
+        <div class="info-panel">
+            <h2>🎮 Team Lobby</h2>
+            <p>Pre-match team composition screen with:</p>
+            <ul class="feature-list">
+                <li>Team roster display</li>
+                <li>Role-based hero cards</li>
+                <li>Synergy indicators</li>
+                <li>Player status badges</li>
+                <li>Voice chat indicators</li>
+                <li>Quick message buttons</li>
+                <li>Ready state management</li>
+                <li>Team comparison stats</li>
+            </ul>
+            <p style="margin-top: 20px; color: #ffd700;">Industry Best Practices:</p>
+            <p>✓ Role-specific colors<br/>✓ Hero portraits prominent<br/>✓ Status indicators clear<br/>✓ Communication tools built-in<br/>✓ Synergy feedback real-time</p>
+        </div>
+        <div class="preview-area" id="lobby-preview"></div>
+    </div>
+
+    <!-- Design Guide View -->
+    <div id="design" class="container">
+        <div class="info-panel">
+            <h2>📐 Design System</h2>
+            <p>Professional UI based on successful game designs:</p>
+            <ul class="feature-list">
+                <li>League of Legends</li>
+                <li>Valorant</li>
+                <li>Overwatch 2</li>
+                <li>Dota 2</li>
+                <li>Counter-Strike 2</li>
+            </ul>
+        </div>
+        <div class="preview-area" style="padding: 24px;">
+            <div id="design-content"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="pvp-personality-system.js"></script>
+    <script src="pvp-professional-ui.js"></script>
+
+    <script>
+        function switchView(viewName) {
+            // Hide all containers
+            document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-button').forEach(b => b.classList.remove('active'));
+
+            // Show selected container
+            document.getElementById(viewName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Load content
+            if (viewName === 'landing') {
+                loadLandingPreview();
+            } else if (viewName === 'lobby') {
+                loadLobbyPreview();
+            } else if (viewName === 'design') {
+                loadDesignGuide();
+            }
+        }
+
+        function loadLandingPreview() {
+            const preview = document.getElementById('landing-preview');
+            preview.innerHTML = '';
+            const landing = ProfessionalLobbyUI.createLandingPage();
+            preview.appendChild(landing);
+        }
+
+        function loadLobbyPreview() {
+            const preview = document.getElementById('lobby-preview');
+            preview.innerHTML = '';
+
+            const blueTeam = ['Krael', 'Petra', 'Lyric'];
+            const redTeam = ['Thaxus', 'Raze', 'Zephyr'];
+
+            const lobby = ProfessionalLobbyUI.createProfessionalLobby(blueTeam, redTeam, 'blue');
+            preview.appendChild(lobby);
+        }
+
+        function loadDesignGuide() {
+            const content = document.getElementById('design-content');
+            content.innerHTML = `
+                <h1 style="color: #00d4ff; margin-bottom: 24px;">NEXUS Professional UI Design System</h1>
+
+                <div style="background: rgba(0, 212, 255, 0.1); border: 2px solid #00d4ff; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                    <h2 style="color: #00d4ff; margin-bottom: 12px;">🎨 Color Palette</h2>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 12px;">
+                        <div style="background: #00d4ff; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Primary<br/>#00D4FF</div>
+                        <div style="background: #00ff88; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Success<br/>#00FF88</div>
+                        <div style="background: #9d4edd; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Secondary<br/>#9D4EDD</div>
+                        <div style="background: #ffd700; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Warning<br/>#FFD700</div>
+                        <div style="background: #ff6b6b; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Error<br/>#FF6B6B</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(157, 78, 221, 0.1); border: 2px solid #9d4edd; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                    <h2 style="color: #9d4edd; margin-bottom: 12px;">🎭 Role Colors</h2>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+                        <div style="background: #D4A574; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Warrior<br/>#D4A574</div>
+                        <div style="background: #C0C0C0; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px; color: #000;">Ranger<br/>#C0C0C0</div>
+                        <div style="background: #FF6B6B; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Mage<br/>#FF6B6B</div>
+                        <div style="background: #00B4A0; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Guardian<br/>#00B4A0</div>
+                        <div style="background: #3A0CA3; padding: 16px; border-radius: 4px; text-align: center; font-size: 12px;">Rogue<br/>#3A0CA3</div>
+                    </div>
+                </div>
+
+                <div style="background: rgba(76, 175, 80, 0.1); border: 2px solid #4caf50; border-radius: 8px; padding: 20px;">
+                    <h2 style="color: #4caf50; margin-bottom: 12px;">✅ Best Practices Applied</h2>
+                    <ul style="list-style: none; padding: 0;">
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Three-tier visual hierarchy (primary, secondary, tertiary)</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Team color coding (blue vs red with clear distinction)</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Role-based icon system with consistent colors</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Status indicators with distinct visual states</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Quick communication features integrated</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Synergy feedback with real-time updates</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Responsive grid layout for mobile & desktop</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ High contrast for accessibility (WCAG AAA)</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Minimal information clutter</li>
+                        <li style="color: #cccccc; margin-bottom: 10px;">✓ Hero portraits prominent and readable</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Load initial preview
+        window.addEventListener('load', () => {
+            loadLandingPreview();
+        });
+    </script>
+</body>
+</html>
