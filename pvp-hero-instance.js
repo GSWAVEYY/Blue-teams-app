@@ -43,18 +43,23 @@ class HeroInstance {
         this.level = 1;
         this.experience = 0;
 
-        // Abilities
+        // Abilities (Enhanced with cooldown reduction support)
         this.abilities = {
-            q: new AbilityInstance(heroData.abilities.q),
-            e: new AbilityInstance(heroData.abilities.e),
-            r: new AbilityInstance(heroData.abilities.r)
+            q: new EnhancedAbilityInstance(heroData.abilities.q, this.cooldownReduction),
+            e: new EnhancedAbilityInstance(heroData.abilities.e, this.cooldownReduction),
+            r: new EnhancedAbilityInstance(heroData.abilities.r, this.cooldownReduction)
         };
+
+        // Resource system (Mana)
+        this.resources = new ResourcePool(400, 10); // 400 max mana, 10 per second regen
 
         // Effects
         this.effects = []; // Active effects/buffs/debuffs
         this.isStunned = false;
         this.isSlowed = false;
         this.slowFactor = 1.0;
+        this.shield = 0; // Shield pool (absorbs damage)
+        this.activeEffects = []; // Active ability effects (walls, zones, etc)
 
         // Weapon
         this.primaryWeapon = heroData.primaryWeapon;
@@ -64,6 +69,11 @@ class HeroInstance {
 
         // Radius for collision
         this.radius = 20;
+
+        // Ability-specific state
+        this.shotCounter = 0; // For Lyric's headshot passive
+        this.cascadeStacks = 0; // For Talen's spell cascade
+        this.markStacks = 0; // For marked/debuff tracking
     }
 
     /**
@@ -79,6 +89,9 @@ class HeroInstance {
             }
             return;
         }
+
+        // Regenerate resources
+        this.resources.regenerate(deltaTime);
 
         // Update effects
         this.updateEffects(deltaTime);
@@ -132,11 +145,13 @@ class HeroInstance {
     }
 
     /**
-     * Update ability cooldowns
+     * Update ability cooldowns (with cooldown reduction)
      */
     updateAbilities(deltaTime) {
+        // Cap cooldown reduction at 40%
+        const cdRCap = Math.min(this.cooldownReduction, 40);
         Object.values(this.abilities).forEach(ability => {
-            ability.update(deltaTime, this.cooldownReduction);
+            ability.update(deltaTime, cdRCap);
         });
     }
 
@@ -144,6 +159,7 @@ class HeroInstance {
      * Update active effects
      */
     updateEffects(deltaTime) {
+        // Update old-style effects
         this.effects = this.effects.filter(effect => {
             effect.duration -= deltaTime;
             return effect.duration > 0;
@@ -152,7 +168,20 @@ class HeroInstance {
         // Recalculate state from effects
         this.isStunned = this.effects.some(e => e.type === "stun");
         const slowEffect = this.effects.find(e => e.type === "slow");
-        this.slowFactor = slowEffect ? slowEffect.value : 1.0;
+        this.slowFactor = slowEffect ? slowEffect.magnitude : 1.0;
+
+        // Update new AbilityEffect instances
+        const validEffects = [];
+        for (let effect of this.effects) {
+            if (effect.update && typeof effect.update === 'function') {
+                if (effect.update(deltaTime)) {
+                    validEffects.push(effect);
+                }
+            } else {
+                validEffects.push(effect);
+            }
+        }
+        this.effects = validEffects;
     }
 
     /**
@@ -190,34 +219,32 @@ class HeroInstance {
     }
 
     /**
-     * Use an ability
+     * Use an ability (integrated with HeroAbilitySystem)
      */
-    useAbility(abilityKey, targetX, targetY) {
+    useAbility(abilityKey, targetX = null, targetY = null, target = null) {
+        if (!this.alive || this.isStunned) return false;
         if (!this.abilities[abilityKey]) return false;
 
-        const ability = this.abilities[abilityKey];
-        if (ability.canUse()) {
-            ability.use();
+        // Execute ability through the HeroAbilitySystem
+        const success = HeroAbilitySystem.executeAbility(this, abilityKey, target, targetX, targetY);
 
-            // Execute ability effect
-            this.executeAbility(abilityKey, targetX, targetY);
-            return true;
+        if (success) {
+            // Add experience on ability use
+            this.experience += 5;
+
+            // Play ability feedback (will be replaced with actual VFX/SFX)
+            const abilityData = this.heroData.abilities[abilityKey];
+            console.log(`[${this.name}] Used ${abilityData.name}`);
         }
-        return false;
+
+        return success;
     }
 
     /**
-     * Execute ability effect
+     * Execute ability effect (legacy, now delegated to HeroAbilitySystem)
      */
     executeAbility(abilityKey, targetX, targetY) {
-        const abilityData = this.heroData.abilities[abilityKey];
-
-        // This is a placeholder - specific abilities would be implemented differently
-        // In a full game, each hero would have unique ability implementations
-        console.log(`${this.name} used ${abilityData.name} at (${targetX}, ${targetY})`);
-
-        // Add experience on ability hit
-        this.experience += 5;
+        console.log(`[${this.name}] Executed ${abilityKey} at (${targetX}, ${targetY})`);
     }
 
     /**
@@ -229,12 +256,24 @@ class HeroInstance {
     }
 
     /**
-     * Take damage
+     * Take damage (with armor and shield mitigation)
      */
     takeDamage(amount, source = "ability", attacker = null) {
         if (!this.alive) return;
 
-        this.health -= amount;
+        // Calculate actual damage based on armor
+        const armorReduction = 1 - (this.armor / 100) * 0.1; // Each armor = 0.1% reduction
+        let actualDamage = Math.max(1, amount * armorReduction);
+
+        // Apply shield first
+        if (this.shield > 0) {
+            const shieldAbsorbed = Math.min(this.shield, actualDamage);
+            this.shield -= shieldAbsorbed;
+            actualDamage -= shieldAbsorbed;
+        }
+
+        // Apply remaining damage to health
+        this.health -= actualDamage;
         this.lastDamagedBy = attacker;
 
         if (this.health <= 0) {
@@ -313,7 +352,7 @@ class HeroInstance {
 
         ctx.globalAlpha = 1.0;
 
-        // Health bar
+        // Health bar with shield
         const barWidth = 50;
         const barHeight = 5;
         ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -322,6 +361,23 @@ class HeroInstance {
         const healthPercent = this.health / this.maxHealth;
         ctx.fillStyle = healthPercent > 0.5 ? "#00ff88" : healthPercent > 0.2 ? "#ffaa00" : "#ff3333";
         ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 15, barWidth * healthPercent, barHeight);
+
+        // Shield bar (over health)
+        if (this.shield > 0) {
+            const maxShield = this.maxHealth * 0.3; // Shield cap relative to health
+            const shieldPercent = Math.min(this.shield / maxShield, 1);
+            ctx.fillStyle = "#00d4ff";
+            ctx.fillRect(this.x - barWidth / 2 + (barWidth * healthPercent), this.y - this.radius - 15, barWidth * shieldPercent, barHeight);
+        }
+
+        // Mana bar (if exists)
+        if (this.resources) {
+            const manaPercent = this.resources.getPercent() / 100;
+            ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+            ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 8, barWidth, 3);
+            ctx.fillStyle = "#9d4edd";
+            ctx.fillRect(this.x - barWidth / 2, this.y - this.radius - 8, barWidth * manaPercent, 3);
+        }
 
         // Hero label
         ctx.fillStyle = "#ffffff";

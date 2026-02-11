@@ -127,7 +127,7 @@ class PvPGame {
     }
 
     /**
-     * Update player-controlled hero
+     * Update player-controlled hero with ability execution
      */
     updatePlayerHero(deltaTime) {
         const hero = this.playerHero;
@@ -136,25 +136,63 @@ class PvPGame {
         // Get input
         const movement = this.controls.getMovement();
 
-        // Apply movement
-        hero.vx = movement.x * moveSpeed * deltaTime;
-        hero.vy = movement.y * moveSpeed * deltaTime;
+        // Apply movement (affected by stuns/slows)
+        if (!hero.isStunned) {
+            hero.vx = movement.x * moveSpeed * deltaTime * hero.slowFactor;
+            hero.vy = movement.y * moveSpeed * deltaTime * hero.slowFactor;
+        } else {
+            hero.vx = 0;
+            hero.vy = 0;
+        }
 
-        // Handle ability inputs
+        // Handle ability inputs (with proper target detection)
         if (this.controls.getAbilityInput("q")) {
-            hero.useAbility("q", this.canvas.width / 2, this.canvas.height / 2);
+            const nearestEnemy = this.findNearestEnemy(hero, 700);
+            hero.useAbility("q", hero.x, hero.y, nearestEnemy);
             this.controls.abilityButtons.q.pressed = false;
+            if (nearestEnemy) {
+                uiManager.addFeedMessage(`${hero.name} used Q!`, "normal");
+            }
         }
 
         if (this.controls.getAbilityInput("e")) {
-            hero.useAbility("e", this.canvas.width / 2, this.canvas.height / 2);
+            const nearestEnemy = this.findNearestEnemy(hero, 600);
+            hero.useAbility("e", hero.x, hero.y, nearestEnemy);
             this.controls.abilityButtons.e.pressed = false;
+            if (nearestEnemy) {
+                uiManager.addFeedMessage(`${hero.name} used E!`, "normal");
+            }
         }
 
         if (this.controls.getAbilityInput("r")) {
-            hero.useAbility("r", this.canvas.width / 2, this.canvas.height / 2);
+            const nearestEnemy = this.findNearestEnemy(hero, 800);
+            hero.useAbility("r", hero.x, hero.y, nearestEnemy);
             this.controls.abilityButtons.r.pressed = false;
+            if (nearestEnemy) {
+                uiManager.addFeedMessage(`${hero.name} used ULTIMATE!`, "kill");
+            }
         }
+    }
+
+    /**
+     * Find nearest enemy within range
+     */
+    findNearestEnemy(hero, range) {
+        let nearestEnemy = null;
+        let nearestDistance = range;
+
+        const allHeroes = this.matchEngine.getAllHeroes();
+        for (let otherHero of allHeroes) {
+            if (otherHero.team !== hero.team && otherHero.alive) {
+                const distance = Math.hypot(otherHero.x - hero.x, otherHero.y - hero.y);
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearestEnemy = otherHero;
+                }
+            }
+        }
+
+        return nearestEnemy;
     }
 
     /**
