@@ -902,6 +902,24 @@ class HeroAbilitySystem {
             case "Petra":
                 this.applyPetraAbility(hero, abilityKey, target, vfx);
                 break;
+            case "Kora":
+                this.applyKoraAbility(hero, abilityKey, target, vfx);
+                break;
+            case "Kyrax":
+                this.applyKyraxAbility(hero, abilityKey, target, vfx);
+                break;
+            case "Zephyr":
+                this.applyZephyrAbility(hero, abilityKey, target, vfx);
+                break;
+            case "Raze":
+                this.applyRazeAbility(hero, abilityKey, target, vfx);
+                break;
+            case "Vesper":
+                this.applyVesperAbility(hero, abilityKey, target, vfx);
+                break;
+            case "Silk":
+                this.applySilkAbility(hero, abilityKey, target, targetX, targetY, vfx);
+                break;
             // Add more as implemented
         }
     }
@@ -1411,6 +1429,202 @@ class HeroAbilitySystem {
                         vfx.healEffect(target.x, target.y, "#00ff88");
                         vfx.damageNumber(target.x, target.y - 30, `+${Math.floor(healAmount)}`, "#00ff88");
                     }
+                }
+                break;
+        }
+    }
+
+    // KORA - Buff/Synergy Support
+    static applyKoraAbility(hero, abilityKey, target, vfx = null) {
+        if (!target) return;
+
+        switch (abilityKey) {
+            case "q":
+                // Attack speed buff with lifesteal
+                target.attackSpeedBonus = (target.attackSpeedBonus || 0) + 0.3;
+                target.lifeSteal = (target.lifeSteal || 0) + 30;
+                if (vfx) vfx.burstEffect(target.x, target.y, "rgba(200, 255, 100, 0.7)", 15, 360, 0.6);
+                break;
+            case "e":
+                // Team rally - movement and damage buff
+                hero.rallyActive = true;
+                if (vfx) vfx.burstEffect(hero.x, hero.y, "rgba(255, 200, 100, 0.7)", 20, 360, 0.8);
+                break;
+            case "r":
+                // Heroism - team-wide buff
+                hero.heroismActive = true;
+                if (vfx) vfx.burstEffect(hero.x, hero.y, "rgba(255, 255, 100, 0.8)", 35, 360, 1.2);
+                break;
+        }
+    }
+
+    // KYRAX - Crowd Control Chains
+    static applyKyraxAbility(hero, abilityKey, target, vfx = null) {
+        if (!target) return;
+
+        switch (abilityKey) {
+            case "q":
+                // Binding stun
+                const bindEffect = new AbilityEffect("stun", 0.8, 0);
+                bindEffect.apply(target);
+                if (vfx) vfx.stunEffect(target.x, target.y);
+                break;
+            case "e":
+                // Suppress - stronger CC
+                target.isSuppressed = true;
+                const suppressEffect = new AbilityEffect("stun", 1.5, 0);
+                suppressEffect.apply(target);
+                if (vfx) {
+                    vfx.stunEffect(target.x, target.y);
+                    vfx.damageNumber(target.x, target.y, "SUPPRESSED", "#ff00ff");
+                }
+                break;
+            case "r":
+                // Lockdown - long duration stun
+                const lockEffect = new AbilityEffect("stun", 2.5, 0);
+                lockEffect.apply(target);
+                if (vfx) {
+                    vfx.burstEffect(target.x, target.y, "rgba(200, 50, 200, 0.8)", 25, 360, 1.0);
+                    vfx.stunEffect(target.x, target.y);
+                }
+                break;
+        }
+    }
+
+    // ZEPHYR - Control/Slow Support
+    static applyZephyrAbility(hero, abilityKey, target, vfx = null) {
+        if (!target) return;
+
+        switch (abilityKey) {
+            case "q":
+                // Wind push with slow
+                const slowEffect1 = new AbilityEffect("slow", 1.5, 0.5);
+                slowEffect1.apply(target);
+                if (vfx) vfx.burstEffect(target.x, target.y, "rgba(100, 200, 255, 0.7)", 15, 360, 0.6);
+                break;
+            case "e":
+                // Cyclone slow zone
+                hero.cycloneActive = true;
+                if (vfx) vfx.burstEffect(hero.x, hero.y, "rgba(100, 200, 255, 0.6)", 20, 360, 0.8);
+                break;
+            case "r":
+                // Tornado with knockup
+                const slowEffect2 = new AbilityEffect("stun", 1.5, 0);
+                slowEffect2.apply(target);
+                if (vfx) {
+                    vfx.burstEffect(target.x, target.y, "rgba(150, 200, 255, 0.8)", 30, 360, 1.2);
+                    vfx.damageNumber(target.x, target.y, "KNOCKUP", "#6699ff");
+                }
+                break;
+        }
+    }
+
+    // RAZE - Execute/Burst Assassin
+    static applyRazeAbility(hero, abilityKey, target, vfx = null) {
+        if (!target) return;
+
+        switch (abilityKey) {
+            case "q":
+                // Mark target
+                target.markedByRaze = true;
+                if (vfx) vfx.burstEffect(target.x, target.y, "rgba(255, 50, 50, 0.6)", 10, 360, 0.5);
+                break;
+            case "e":
+                // Strike with burst
+                const damage1 = hero.attackDamage * 1.8;
+                hero.dealDamage(target, damage1, "ability");
+                if (vfx) {
+                    vfx.slash(hero.x, hero.y, target.x, target.y, "rgba(255, 50, 50, 0.8)");
+                    vfx.damageNumber(target.x, target.y, Math.floor(damage1), "#ff3333");
+                }
+                break;
+            case "r":
+                // Annihilate - execute damage
+                const damage2 = hero.attackDamage * 2.5;
+                hero.dealDamage(target, damage2, "ability");
+                if (vfx) {
+                    vfx.explosion(target.x, target.y, 200);
+                    vfx.damageNumber(target.x, target.y, Math.floor(damage2), "#ff0000");
+                }
+                break;
+        }
+    }
+
+    // VESPER - Drain/Lifesteal Assassin
+    static applyVesperAbility(hero, abilityKey, target, vfx = null) {
+        if (!target) return;
+
+        switch (abilityKey) {
+            case "q":
+                // Lifetap - damage + heal
+                const damage1 = hero.attackDamage * 1.3;
+                hero.dealDamage(target, damage1, "ability");
+                const healAmount1 = damage1 * 0.5; // Drain 50% of damage
+                hero.health = Math.min(hero.maxHealth, hero.health + healAmount1);
+                if (vfx) {
+                    vfx.slash(hero.x, hero.y, target.x, target.y, "rgba(150, 50, 200, 0.8)");
+                    vfx.healEffect(hero.x, hero.y, "#cc00ff");
+                }
+                break;
+            case "e":
+                // Drain pulse - AOE drain
+                const damage2 = hero.abilityPower * 1.2;
+                hero.dealDamage(target, damage2, "ability");
+                const healAmount2 = damage2 * 0.4;
+                hero.health = Math.min(hero.maxHealth, hero.health + healAmount2);
+                if (vfx) vfx.burstEffect(hero.x, hero.y, "rgba(150, 50, 200, 0.7)", 20, 360, 0.8);
+                break;
+            case "r":
+                // Feast - massive drain
+                const damage3 = hero.abilityPower * 2.0;
+                hero.dealDamage(target, damage3, "ability");
+                const healAmount3 = damage3 * 0.6;
+                hero.health = Math.min(hero.maxHealth, hero.health + healAmount3);
+                if (vfx) {
+                    vfx.burstEffect(target.x, target.y, "rgba(150, 50, 200, 0.8)", 30, 360, 1.2);
+                    vfx.healEffect(hero.x, hero.y, "#cc00ff");
+                }
+                break;
+        }
+    }
+
+    // SILK - Web Control
+    static applySilkAbility(hero, abilityKey, target, targetX, targetY, vfx = null) {
+        hero.activeWebs = hero.activeWebs || [];
+
+        switch (abilityKey) {
+            case "q":
+                // Web shot - damage + root
+                if (target) {
+                    const damage = hero.attackDamage * 1.1;
+                    hero.dealDamage(target, damage, "ability");
+                    const rootEffect = new AbilityEffect("stun", 1.5, 0);
+                    rootEffect.apply(target);
+                    if (vfx) {
+                        vfx.projectile(hero.x, hero.y, target.x, target.y, "rgba(150, 150, 255, 0.7)", 600);
+                        vfx.damageNumber(target.x, target.y, Math.floor(damage), "#9999ff");
+                    }
+                }
+                break;
+            case "e":
+                // Web swing - mobility
+                if (targetX !== null && targetY !== null) {
+                    hero.vx = (targetX - hero.x) * 0.1;
+                    hero.vy = (targetY - hero.y) * 0.1;
+                    if (vfx) vfx.burstEffect(targetX, targetY, "rgba(150, 150, 255, 0.6)", 15, 360, 0.6);
+                }
+                break;
+            case "r":
+                // Web dome - area control
+                if (targetX !== null && targetY !== null) {
+                    hero.webDomeActive = {
+                        x: targetX,
+                        y: targetY,
+                        radius: 350,
+                        duration: 4,
+                        elapsed: 0
+                    };
+                    if (vfx) vfx.burstEffect(targetX, targetY, "rgba(150, 150, 255, 0.7)", 25, 360, 0.9);
                 }
                 break;
         }
