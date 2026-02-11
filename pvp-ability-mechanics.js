@@ -484,44 +484,47 @@ const EMBER_ABILITIES = {
     }
 };
 
-// TALEN - Combo/Burst Mage (Passive: Spell Cascade, Q: Arcane Missile, E: Temporal Shift, R: Spell Overload)
+// TALEN - Cascade Mage (Passive: Spell Cascade, Q: Spark Chain, E: Arcane Pulse, R: Convergence)
+// Playstyle: Build momentum through spell chaining and stacking mechanics
+// Difficulty: Medium - requires spell sequencing for optimal damage
 const TALEN_ABILITIES = {
     passive: {
         name: "Spell Cascade",
-        description: "Each ability cast increases next ability damage by 20% (stacks up to 3x). Resets after auto-attack.",
-        cascadeStacks: 0,
+        description: "Each ability cast stacks cascade (max 5). Next ability damage increases 25% per stack. Auto-attacks consume stacks.",
         effect: (hero) => {
-            hero.cascadeStacks = Math.min(3, (hero.cascadeStacks || 0) + 1);
-            return 1 + (hero.cascadeStacks * 0.2);
+            hero.cascadeStacks = Math.min(5, (hero.cascadeStacks || 0) + 1);
+            return 1 + (hero.cascadeStacks * 0.25);
         }
     },
     q: {
-        name: "Arcane Missile",
-        description: "Fire 3 missiles dealing 80% AP each. Each hit increases next Q damage by 25%.",
+        name: "Spark Chain",
+        description: "Fire projectile dealing 100% AP. If it chains to next target, damage increases 40%. Builds cascade.",
         cooldown: 3,
-        manaCost: 40,
-        damage: (hero) => hero.abilityPower * 0.8,
-        projectiles: 3,
-        damageIncrease: 0.25
+        manaCost: 45,
+        range: 700,
+        damage: (hero) => hero.abilityPower * 1.0,
+        projectiles: 1,
+        chainDamageBonus: 0.4
     },
     e: {
-        name: "Temporal Shift",
-        description: "Teleport to location, gaining 50% attack speed for 3s. Enemies near exit take 120% AP damage.",
-        cooldown: 11,
-        manaCost: 75,
-        range: 500,
-        duration: 3,
-        exitDamage: (hero) => hero.abilityPower * 1.2,
-        attackSpeedBonus: 0.5
+        name: "Arcane Pulse",
+        description: "AOE burst dealing 130% AP damage. Doubles cascade stacks on hit. Efficiency multiplier for rotation.",
+        cooldown: 7,
+        manaCost: 65,
+        range: 600,
+        radius: 280,
+        damage: (hero) => hero.abilityPower * 1.3,
+        stackMultiplier: 2 // Double stacks on hit
     },
     r: {
-        name: "Spell Overload",
-        description: "Next 3 abilities cost no mana and recharge 75% faster for 6s. Activates after 3 spell casts.",
-        cooldown: 95,
-        manaCost: 0,
-        duration: 6,
-        triggerAfter: 3,
-        cooldownReduction: 0.75
+        name: "Convergence",
+        description: "ULTIMATE: Consume all cascade stacks. Deal 200% AP + (100% AP × cascade stacks) damage. Recharge: 100s",
+        cooldown: 100,
+        manaCost: 150,
+        range: 800,
+        baseDamage: (hero) => hero.abilityPower * 2.0,
+        stackDamage: (hero) => hero.abilityPower * 1.0,
+        consumesStacks: true // Consumes cascade stacks for damage
     }
 };
 
@@ -893,6 +896,9 @@ class HeroAbilitySystem {
             case "Ember":
                 this.applyEmberAbility(hero, abilityKey, target, targetX, targetY, vfx);
                 break;
+            case "Talen":
+                this.applyTalenAbility(hero, abilityKey, target, targetX, targetY, vfx);
+                break;
             // Add more as implemented
         }
     }
@@ -1252,6 +1258,88 @@ class HeroAbilitySystem {
                     if (vfx) {
                         vfx.burstEffect(targetX, targetY, "rgba(255, 100, 100, 0.7)", 40, 360, 1.2);
                     }
+                }
+                break;
+        }
+    }
+
+    /**
+     * TALEN - The Cascade Mage (Battlemage)
+     * Playstyle: Build momentum through spell chaining and stacking
+     * Difficulty: Medium - requires spell sequencing
+     * Personality: Brilliant theorycrafting mage - "One more theory to test..."
+     */
+    static applyTalenAbility(hero, abilityKey, target, targetX, targetY, vfx = null) {
+        const abilities = TALEN_ABILITIES;
+        hero.cascadeStacks = hero.cascadeStacks || 0;
+
+        switch (abilityKey) {
+            case "q":
+                // Spark Chain - Single target with cascade building
+                if (target) {
+                    let damage = abilities.q.damage(hero);
+
+                    // Apply cascade bonus
+                    const cascadeBonus = 1 + (hero.cascadeStacks * 0.25);
+                    damage *= cascadeBonus;
+
+                    hero.dealDamage(target, damage, "ability");
+
+                    // Build cascade stack
+                    hero.cascadeStacks = Math.min(5, hero.cascadeStacks + 1);
+
+                    if (vfx) {
+                        vfx.projectile(hero.x, hero.y, target.x, target.y, "rgba(100, 150, 255, 0.8)", 600);
+                        vfx.damageNumber(target.x, target.y, Math.floor(damage), "#6699ff");
+                    }
+                }
+                break;
+
+            case "e":
+                // Arcane Pulse - AOE that doubles cascade stacks
+                if (targetX !== null && targetY !== null) {
+                    let damage = abilities.e.damage(hero);
+
+                    // Apply current cascade bonus
+                    const cascadeBonus = 1 + (hero.cascadeStacks * 0.25);
+                    damage *= cascadeBonus;
+
+                    // Find all enemies in radius and deal damage
+                    // For now, just apply to single target if it exists
+                    if (target) {
+                        hero.dealDamage(target, damage, "ability");
+                    }
+
+                    // Double cascade stacks on hit (reward for good spell sequencing)
+                    hero.cascadeStacks = Math.min(5, hero.cascadeStacks * abilities.e.stackMultiplier);
+
+                    if (vfx) {
+                        vfx.burstEffect(targetX, targetY, "rgba(100, 150, 255, 0.7)", 20, 360, 0.9);
+                        vfx.damageNumber(targetX, targetY, Math.floor(damage), "#6699ff");
+                    }
+                }
+                break;
+
+            case "r":
+                // Convergence - Consume stacks for big damage
+                if (target) {
+                    const baseDamage = abilities.r.baseDamage(hero);
+                    const stackDamage = abilities.r.stackDamage(hero) * hero.cascadeStacks;
+                    const totalDamage = baseDamage + stackDamage;
+
+                    hero.dealDamage(target, totalDamage, "ability");
+
+                    // VFX - Climactic convergence effect
+                    if (vfx) {
+                        // Scale effect based on stacks consumed
+                        const stackScale = 1 + (hero.cascadeStacks * 0.2);
+                        vfx.explosion(target.x, target.y, 300 * stackScale);
+                        vfx.burstEffect(target.x, target.y, "rgba(150, 100, 255, 0.8)", 30 * stackScale, 360, 1.5);
+                        vfx.damageNumber(target.x, target.y, Math.floor(totalDamage), "#cc99ff");
+                    }
+
+                    // Consume all cascade stacks
+                    hero.cascadeStacks = 0;
                 }
                 break;
         }
