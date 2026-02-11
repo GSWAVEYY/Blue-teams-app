@@ -255,6 +255,46 @@ const ALDRIN_ABILITIES = {
     }
 };
 
+// ALDRIN - Defender/Warden (Passive: Bastion, Q: Shieldwall, E: Counterblow, R: Fortification)
+const ALDRIN_ABILITIES = {
+    passive: {
+        name: "Bastion",
+        description: "Nearby enemies deal 20% less damage to you. Bonus increases to 40% if nearby allies present.",
+        effect: (hero) => {
+            hero.damageReductionAura = 0.2; // 20% damage reduction
+        }
+    },
+    q: {
+        name: "Shieldwall",
+        description: "Create barrier absorbing 300 + 10% max health damage for 5s. Nearby enemies deal 30% less damage through barrier.",
+        cooldown: 8,
+        manaCost: 60,
+        shieldAmount: (hero) => 300 + (hero.maxHealth * 0.1),
+        duration: 5,
+        damageReduction: 0.3
+    },
+    e: {
+        name: "Counterblow",
+        description: "Counter next attack within 3s, reflecting 50% damage back and slowing attacker 50% for 2s.",
+        cooldown: 10,
+        manaCost: 55,
+        duration: 3,
+        reflectPercent: 0.5,
+        slowDuration: 2,
+        slowMagnitude: 0.5
+    },
+    r: {
+        name: "Fortification",
+        description: "ULTIMATE: Protect team for 6s. You and nearby allies gain 40% damage reduction and move 20% faster. Recharge: 100s",
+        cooldown: 100,
+        manaCost: 160,
+        duration: 6,
+        damageReduction: 0.4,
+        radius: 500,
+        movementSpeedBonus: 0.2
+    }
+};
+
 /**
  * RANGER HEROES - LYRIC, VOS, KESS
  */
@@ -822,6 +862,9 @@ class HeroAbilitySystem {
             case "Thaxus":
                 this.applyThaxusAbility(hero, abilityKey, target, vfx);
                 break;
+            case "Aldrin":
+                this.applyAldrinAbility(hero, abilityKey, target, vfx);
+                break;
             case "Lyric":
                 this.applyLyricAbility(hero, abilityKey, target, vfx);
                 break;
@@ -958,6 +1001,67 @@ class HeroAbilitySystem {
                 hero.rampageMode = true;
                 hero.rampageAttackSpeedBonus = abilities.r.attackSpeedBonus;
                 setTimeout(() => { hero.rampageMode = false; }, abilities.r.duration * 1000);
+                break;
+        }
+    }
+
+    /**
+     * ALDRIN - The Bastion (Defensive Warden)
+     * Playstyle: Zone control, team protection, reducing damage
+     * Difficulty: Easy - straightforward shield mechanics
+     * Personality: Stoic defender - "The wall holds"
+     */
+    static applyAldrinAbility(hero, abilityKey, target, vfx = null) {
+        const abilities = ALDRIN_ABILITIES;
+
+        switch (abilityKey) {
+            case "q":
+                // Shieldwall - Create barrier absorbing damage
+                hero.activeShield = hero.activeShield || {};
+                hero.activeShield.shieldwall = {
+                    amount: abilities.q.shieldAmount(hero),
+                    duration: abilities.q.duration,
+                    damageReduction: abilities.q.damageReduction,
+                    elapsed: 0
+                };
+
+                if (vfx) {
+                    vfx.shieldEffect(hero.x, hero.y);
+                    vfx.burstEffect(hero.x, hero.y, "rgba(100, 200, 255, 0.6)", 20, 360, 0.8);
+                }
+                break;
+
+            case "e":
+                // Counterblow - Riposte next attack
+                hero.counterBlowActive = true;
+                hero.counterBlowData = {
+                    duration: abilities.e.duration,
+                    elapsed: 0,
+                    reflectPercent: abilities.e.reflectPercent,
+                    slowDuration: abilities.e.slowDuration,
+                    slowMagnitude: abilities.e.slowMagnitude
+                };
+
+                if (vfx) {
+                    vfx.shieldEffect(hero.x, hero.y);
+                }
+                break;
+
+            case "r":
+                // Fortification - Team-wide defense buff
+                hero.fortificationActive = true;
+                hero.fortificationData = {
+                    duration: abilities.r.duration,
+                    damageReduction: abilities.r.damageReduction,
+                    radius: abilities.r.radius,
+                    movementSpeedBonus: abilities.r.movementSpeedBonus,
+                    elapsed: 0
+                };
+
+                if (vfx) {
+                    vfx.burstEffect(hero.x, hero.y, "rgba(100, 200, 255, 0.8)", 30, 360, 1.2);
+                    vfx.damageNumber(hero.x, hero.y - 50, "FORTIFIED", "#00d4ff");
+                }
                 break;
         }
     }
