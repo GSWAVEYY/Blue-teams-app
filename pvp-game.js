@@ -17,6 +17,7 @@ class PvPGame {
         this.matchEngine = null;
         this.controls = new MobileControls(canvas);
         this.stats = new MatchStats();
+        this.vfx = new VFXManager(); // Visual effects system
 
         // Local player
         this.playerId = gameState.playerId;
@@ -115,6 +116,9 @@ class PvPGame {
         gameState.updateMatchTime(deltaTime * 1000);
         this.matchEngine.update(deltaTime);
 
+        // Update visual effects
+        this.vfx.update(deltaTime);
+
         // Update player hero based on input
         if (this.playerHero && this.playerHero.alive) {
             this.updatePlayerHero(deltaTime);
@@ -148,27 +152,27 @@ class PvPGame {
         // Handle ability inputs (with proper target detection)
         if (this.controls.getAbilityInput("q")) {
             const nearestEnemy = this.findNearestEnemy(hero, 700);
-            hero.useAbility("q", hero.x, hero.y, nearestEnemy);
+            const success = hero.useAbility("q", hero.x, hero.y, nearestEnemy, this.vfx);
             this.controls.abilityButtons.q.pressed = false;
-            if (nearestEnemy) {
+            if (success && nearestEnemy) {
                 uiManager.addFeedMessage(`${hero.name} used Q!`, "normal");
             }
         }
 
         if (this.controls.getAbilityInput("e")) {
             const nearestEnemy = this.findNearestEnemy(hero, 600);
-            hero.useAbility("e", hero.x, hero.y, nearestEnemy);
+            const success = hero.useAbility("e", hero.x, hero.y, nearestEnemy, this.vfx);
             this.controls.abilityButtons.e.pressed = false;
-            if (nearestEnemy) {
+            if (success && nearestEnemy) {
                 uiManager.addFeedMessage(`${hero.name} used E!`, "normal");
             }
         }
 
         if (this.controls.getAbilityInput("r")) {
             const nearestEnemy = this.findNearestEnemy(hero, 800);
-            hero.useAbility("r", hero.x, hero.y, nearestEnemy);
+            const success = hero.useAbility("r", hero.x, hero.y, nearestEnemy, this.vfx);
             this.controls.abilityButtons.r.pressed = false;
-            if (nearestEnemy) {
+            if (success && nearestEnemy) {
                 uiManager.addFeedMessage(`${hero.name} used ULTIMATE!`, "kill");
             }
         }
@@ -210,6 +214,9 @@ class PvPGame {
 
         // Draw match (arena, heroes, etc)
         this.matchEngine.draw(this.ctx);
+
+        // Draw visual effects
+        this.vfx.draw(this.ctx);
 
         // Draw controls
         this.controls.draw(this.ctx);

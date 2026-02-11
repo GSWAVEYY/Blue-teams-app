@@ -784,7 +784,7 @@ class HeroAbilitySystem {
         return this.HERO_ABILITIES[heroName] || null;
     }
 
-    static executeAbility(hero, abilityKey, target = null, targetX = null, targetY = null) {
+    static executeAbility(hero, abilityKey, target = null, targetX = null, targetY = null, vfx = null) {
         const abilityData = hero.heroData.abilities[abilityKey];
         if (!abilityData) return false;
 
@@ -802,12 +802,12 @@ class HeroAbilitySystem {
         ability.use();
 
         // Execute ability effects
-        this.applyAbilityEffects(hero, abilityKey, target, targetX, targetY);
+        this.applyAbilityEffects(hero, abilityKey, target, targetX, targetY, vfx);
 
         return true;
     }
 
-    static applyAbilityEffects(hero, abilityKey, target, targetX, targetY) {
+    static applyAbilityEffects(hero, abilityKey, target, targetX, targetY, vfx = null) {
         const heroAbilities = this.HERO_ABILITIES[hero.name];
         if (!heroAbilities) return;
 
@@ -817,24 +817,23 @@ class HeroAbilitySystem {
         // Apply specific hero ability mechanics
         switch (hero.name) {
             case "Grael":
-                this.applyGraelAbility(hero, abilityKey, target);
+                this.applyGraelAbility(hero, abilityKey, target, vfx);
                 break;
             case "Thaxus":
-                this.applyThaxusAbility(hero, abilityKey, target);
+                this.applyThaxusAbility(hero, abilityKey, target, vfx);
                 break;
-            // ... continue for all heroes
             case "Lyric":
-                this.applyLyricAbility(hero, abilityKey, target);
+                this.applyLyricAbility(hero, abilityKey, target, vfx);
                 break;
             case "Ember":
-                this.applyEmberAbility(hero, abilityKey, target, targetX, targetY);
+                this.applyEmberAbility(hero, abilityKey, target, targetX, targetY, vfx);
                 break;
             // Add more as implemented
         }
     }
 
     // Ability implementations per hero
-    static applyGraelAbility(hero, abilityKey, target) {
+    static applyGraelAbility(hero, abilityKey, target, vfx = null) {
         const abilities = GRAEL_ABILITIES;
 
         switch (abilityKey) {
@@ -844,10 +843,17 @@ class HeroAbilitySystem {
                     hero.dealDamage(target, damage, "ability");
                     const slowEffect = new AbilityEffect("slow", 2, 0.7);
                     slowEffect.apply(target);
+
+                    // VFX
+                    if (vfx) {
+                        vfx.slash(hero.x, hero.y, target.x, target.y, "rgba(255, 80, 0, 0.8)");
+                        vfx.damageNumber(target.x, target.y, Math.floor(damage), "#ff6b6b");
+                    }
                 }
                 break;
             case "e":
                 hero.shield = (hero.shield || 0) + abilities.e.shieldAmount(hero);
+                if (vfx) vfx.shieldEffect(hero.x, hero.y);
                 break;
             case "r":
                 // Meteor storm - area damage
@@ -856,6 +862,13 @@ class HeroAbilitySystem {
                     hero.dealDamage(target, damage, "ability");
                     const stunEffect = new AbilityEffect("stun", 0.5);
                     stunEffect.apply(target);
+
+                    // VFX
+                    if (vfx) {
+                        vfx.explosion(target.x, target.y, abilities.r.radius);
+                        vfx.stunEffect(target.x, target.y);
+                        vfx.damageNumber(target.x, target.y, Math.floor(damage), "#ffaa00");
+                    }
                 }
                 break;
         }

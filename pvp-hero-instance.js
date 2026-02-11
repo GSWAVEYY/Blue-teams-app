@@ -221,12 +221,12 @@ class HeroInstance {
     /**
      * Use an ability (integrated with HeroAbilitySystem)
      */
-    useAbility(abilityKey, targetX = null, targetY = null, target = null) {
+    useAbility(abilityKey, targetX = null, targetY = null, target = null, vfx = null) {
         if (!this.alive || this.isStunned) return false;
         if (!this.abilities[abilityKey]) return false;
 
         // Execute ability through the HeroAbilitySystem
-        const success = HeroAbilitySystem.executeAbility(this, abilityKey, target, targetX, targetY);
+        const success = HeroAbilitySystem.executeAbility(this, abilityKey, target, targetX, targetY, vfx);
 
         if (success) {
             // Add experience on ability use
