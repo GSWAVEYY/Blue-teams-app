@@ -382,41 +382,47 @@ const VOS_ABILITIES = {
     }
 };
 
-// KESS - Assassin/Burst (Passive: Ambush, Q: Shadowbolt, E: Blink, R: Death Mark)
+/// KESS - Phantom/Assassin (Passive: Shadow Step, Q: Blade Rush, E: Void Burst, R: Spectral Form)
+// Playstyle: Burst assassin who controls engagement through teleportation and escape mechanics
+// Difficulty: Hard - requires precise execution and timing
 const KESS_ABILITIES = {
     passive: {
-        name: "Ambush",
-        description: "First attack vs target deals 30% bonus damage. Bonus refreshes if not seen for 3s.",
+        name: "Shadow Step",
+        description: "After damaging enemy, gain 40% movement speed for 1.5s. Can dash between attacks.",
         effect: (hero) => {
-            return 1.3; // 30% bonus on first hit
+            hero.shadowStepActive = true;
+            hero.shadowStepSpeed = 0.4;
         }
     },
     q: {
-        name: "Shadowbolt",
-        description: "Fire shadow projectile dealing 110% AD damage. Returns if it hits, dealing damage again.",
+        name: "Blade Rush",
+        description: "Dash to target dealing 120% AD damage. If it hits, next E cooldown reduces by 3s.",
         cooldown: 5,
-        manaCost: 45,
-        damage: (hero) => hero.attackDamage * 1.1,
-        returns: true
+        manaCost: 50,
+        range: 400,
+        damage: (hero) => hero.attackDamage * 1.2,
+        dashSpeed: true,
+        cooldownReset: "e" // Resets E cooldown
     },
     e: {
-        name: "Blink",
-        description: "Dash to target location, gaining 50% movement speed. Can pass through walls.",
-        cooldown: 10,
-        manaCost: 65,
-        range: 350,
-        movementSpeedBonus: 0.5,
-        wallPhase: true
+        name: "Void Burst",
+        description: "Burst forward dealing 200% AD damage in cone. You can recast within 2s to teleport back to origin.",
+        cooldown: 12,
+        manaCost: 80,
+        range: 300,
+        damage: (hero) => hero.attackDamage * 2.0,
+        recastable: true,
+        recastWindow: 2
     },
     r: {
-        name: "Death Mark",
-        description: "Mark target for 6s. Attacks deal 35% bonus damage. Killing marked target resets cooldown.",
-        cooldown: 80,
-        manaCost: 120,
-        range: 700,
-        duration: 6,
-        damageBonus: 0.35,
-        cooldownReset: true
+        name: "Spectral Form",
+        description: "ULTIMATE: Become untargetable and invisible for 3s. Move 60% faster. Recharge: 110s",
+        cooldown: 110,
+        manaCost: 150,
+        duration: 3,
+        untargetable: true,
+        invisible: true,
+        movementSpeedBonus: 0.6
     }
 };
 
@@ -865,6 +871,9 @@ class HeroAbilitySystem {
             case "Aldrin":
                 this.applyAldrinAbility(hero, abilityKey, target, vfx);
                 break;
+            case "Kess":
+                this.applyKessAbility(hero, abilityKey, target, vfx);
+                break;
             case "Lyric":
                 this.applyLyricAbility(hero, abilityKey, target, vfx);
                 break;
@@ -1061,6 +1070,80 @@ class HeroAbilitySystem {
                 if (vfx) {
                     vfx.burstEffect(hero.x, hero.y, "rgba(100, 200, 255, 0.8)", 30, 360, 1.2);
                     vfx.damageNumber(hero.x, hero.y - 50, "FORTIFIED", "#00d4ff");
+                }
+                break;
+        }
+    }
+
+    /**
+     * KESS - The Phantom (Burst Assassin)
+     * Playstyle: Burst combos with teleportation and escape mechanics
+     * Difficulty: Hard - requires precise execution timing
+     * Personality: Professional killer - "Blink and you're gone"
+     */
+    static applyKessAbility(hero, abilityKey, target, vfx = null) {
+        const abilities = KESS_ABILITIES;
+
+        switch (abilityKey) {
+            case "q":
+                // Blade Rush - Dash and burst damage
+                if (target) {
+                    const damage = abilities.q.damage(hero);
+                    hero.dealDamage(target, damage, "ability");
+
+                    // Reduce E cooldown by 3s
+                    if (hero.abilities && hero.abilities.e) {
+                        hero.abilities.e.cooldownRemaining = Math.max(0, hero.abilities.e.cooldownRemaining - 3);
+                    }
+
+                    // VFX
+                    if (vfx) {
+                        vfx.slash(hero.x, hero.y, target.x, target.y, "rgba(100, 50, 200, 0.8)");
+                        vfx.damageNumber(target.x, target.y, Math.floor(damage), "#cc00ff");
+                    }
+                }
+
+                // Trigger Shadow Step bonus
+                hero.shadowStepActive = true;
+                hero.shadowStepElapsed = 0;
+                break;
+
+            case "e":
+                // Void Burst - Cone damage with recast escape option
+                if (target) {
+                    const damage = abilities.e.damage(hero);
+                    hero.dealDamage(target, damage, "ability");
+
+                    // VFX - cone burst
+                    if (vfx) {
+                        vfx.burstEffect(hero.x, hero.y, "rgba(150, 50, 255, 0.8)", 25, 180, 1.0);
+                        vfx.damageNumber(target.x, target.y, Math.floor(damage), "#cc00ff");
+                    }
+                }
+
+                // Enable recast (teleport back)
+                hero.voidBurstActive = true;
+                hero.voidBurstOriginX = hero.x;
+                hero.voidBurstOriginY = hero.y;
+                hero.voidBurstElapsed = 0;
+                break;
+
+            case "r":
+                // Spectral Form - Become untargetable and invisible
+                hero.spectralFormActive = true;
+                hero.spectralFormData = {
+                    duration: abilities.r.duration,
+                    elapsed: 0,
+                    untargetable: true,
+                    invisible: true,
+                    speedBonus: abilities.r.movementSpeedBonus
+                };
+
+                // Make hero invisible
+                hero.visible = false;
+
+                if (vfx) {
+                    vfx.burstEffect(hero.x, hero.y, "rgba(200, 100, 255, 0.6)", 35, 360, 1.5);
                 }
                 break;
         }
