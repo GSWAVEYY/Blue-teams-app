@@ -246,6 +246,11 @@ class HeroInstance {
             // Play ability feedback (will be replaced with actual VFX/SFX)
             const abilityData = this.heroData.abilities[abilityKey];
             console.log(`[${this.name}] Used ${abilityData.name}`);
+
+            // Trigger personality voice line
+            if (window.VoiceLineManager) {
+                VoiceLineManager.displayVoiceLine(this.name, abilityKey, 1920, 1080);
+            }
         }
 
         return success;
