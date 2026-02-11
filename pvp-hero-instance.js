@@ -61,11 +61,19 @@ class HeroInstance {
         this.shield = 0; // Shield pool (absorbs damage)
         this.activeEffects = []; // Active ability effects (walls, zones, etc)
 
-        // Weapon
+        // Weapon System Integration
         this.primaryWeapon = heroData.primaryWeapon;
         this.secondaryWeapon = heroData.secondaryWeapon;
         this.ammo = 30;
         this.maxAmmo = 30;
+
+        // Initialize weapon instances (will be set by WeaponSystem)
+        this.primaryWeaponInstance = null;
+        this.secondaryWeaponInstance = null;
+        this.activeWeapon = null;
+
+        // Initialize weapons after creation
+        WeaponSystem.attachWeaponsToHero(this, this.primaryWeapon, this.secondaryWeapon);
 
         // Radius for collision
         this.radius = 20;
@@ -98,6 +106,9 @@ class HeroInstance {
 
         // Update abilities
         this.updateAbilities(deltaTime);
+
+        // Update weapons and projectiles
+        WeaponSystem.updateHeroWeapons(this, deltaTime);
 
         // Apply movement with collision
         this.updateMovement(arena);

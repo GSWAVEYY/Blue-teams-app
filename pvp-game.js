@@ -215,6 +215,9 @@ class PvPGame {
         // Draw match (arena, heroes, etc)
         this.matchEngine.draw(this.ctx);
 
+        // Draw weapon projectiles
+        WeaponSystem.drawAllProjectiles(this.ctx, this.matchEngine.getAllHeroes());
+
         // Draw visual effects
         this.vfx.draw(this.ctx);
 
