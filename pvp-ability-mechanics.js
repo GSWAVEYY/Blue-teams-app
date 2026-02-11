@@ -343,42 +343,52 @@ const LYRIC_ABILITIES = {
     }
 };
 
-// VOS - Ranger/Trapper (Passive: Trap Detection, Q: Explosive Trap, E: Scatter Shot, R: Mine Field)
+// VOS - Trap Master/Scout (Passive: Ambush, Q: Spike Trap, E: Trip Mine, R: Minefield)
+// Playstyle: Control space through strategic trap placement and prediction
+// Difficulty: Medium - requires prediction and map awareness
 const VOS_ABILITIES = {
     passive: {
-        name: "Trap Detection",
-        description: "Detect enemy movement through walls. Traps deal 25% bonus damage.",
+        name: "Ambush",
+        description: "Gain 35% bonus damage to enemies hit by your traps. Standing still for 2s grants +40% trap damage.",
         effect: (hero) => {
-            hero.trapDamageBonus = 1.25;
+            hero.trapDamageBonus = 1.35;
+            if (hero.stillDuration && hero.stillDuration >= 2) {
+                hero.trapDamageBonus = 1.75; // 75% bonus
+            }
         }
     },
     q: {
-        name: "Explosive Trap",
-        description: "Place trap that explodes on enemy contact, dealing 120% AD damage in radius. Up to 3 traps.",
-        cooldown: 6,
-        manaCost: 50,
-        charges: 3,
-        damage: (hero) => hero.attackDamage * 1.2,
-        radius: 250,
-        duration: 60 // trap lasts 60 seconds
+        name: "Spike Trap",
+        description: "Place explosive trap dealing 140% AD damage on trigger. Up to 4 traps active. Reveals enemies.",
+        cooldown: 5,
+        manaCost: 45,
+        charges: 4,
+        damage: (hero) => hero.attackDamage * 1.4,
+        radius: 280,
+        duration: 90, // trap lasts 90 seconds
+        revealDuration: 2
     },
     e: {
-        name: "Scatter Shot",
-        description: "Fire 5 arrows in cone pattern, each dealing 50% AD. Applies slow stacks.",
-        cooldown: 9,
-        manaCost: 70,
-        damage: (hero) => hero.attackDamage * 0.5,
-        projectiles: 5
+        name: "Trip Mine",
+        description: "Place slowing trap that roots enemies for 2s when triggered. Can have 3 active.",
+        cooldown: 8,
+        manaCost: 60,
+        charges: 3,
+        rootDuration: 2,
+        radius: 300,
+        duration: 75
     },
     r: {
-        name: "Mine Field",
-        description: "Create minefield covering 400 radius for 8s. Enemies take 200% AD damage on detonation, stunned 1s.",
-        cooldown: 100,
-        manaCost: 140,
-        range: 600,
-        radius: 400,
-        damage: (hero) => hero.attackDamage * 2.0,
-        duration: 8
+        name: "Minefield",
+        description: "ULTIMATE: Deploy minefield covering 500 radius for 10s. Each detonation deals 180% AD damage and stuns 0.8s. Recharge: 120s",
+        cooldown: 120,
+        manaCost: 160,
+        range: 700,
+        radius: 500,
+        damage: (hero) => hero.attackDamage * 1.8,
+        stunDuration: 0.8,
+        duration: 10,
+        mineCount: 8
     }
 };
 
@@ -874,6 +884,9 @@ class HeroAbilitySystem {
             case "Kess":
                 this.applyKessAbility(hero, abilityKey, target, vfx);
                 break;
+            case "Vos":
+                this.applyVosAbility(hero, abilityKey, targetX, targetY, vfx);
+                break;
             case "Lyric":
                 this.applyLyricAbility(hero, abilityKey, target, vfx);
                 break;
@@ -1144,6 +1157,101 @@ class HeroAbilitySystem {
 
                 if (vfx) {
                     vfx.burstEffect(hero.x, hero.y, "rgba(200, 100, 255, 0.6)", 35, 360, 1.5);
+                }
+                break;
+        }
+    }
+
+    /**
+     * VOS - The Trap Master (Control/Scout)
+     * Playstyle: Control space through strategic trap placement
+     * Difficulty: Medium - requires prediction and map awareness
+     * Personality: Sneaky, patient - "You never saw me coming"
+     */
+    static applyVosAbility(hero, abilityKey, targetX, targetY, vfx = null) {
+        const abilities = VOS_ABILITIES;
+
+        // Initialize trap array if needed
+        hero.activeTraps = hero.activeTraps || [];
+
+        switch (abilityKey) {
+            case "q":
+                // Spike Trap - Place damaging trap at location
+                if (targetX !== null && targetY !== null) {
+                    const trapDamage = abilities.q.damage(hero) * (hero.trapDamageBonus || 1);
+
+                    const spikeTrap = {
+                        type: "spike",
+                        x: targetX,
+                        y: targetY,
+                        damage: trapDamage,
+                        radius: abilities.q.radius,
+                        duration: abilities.q.duration,
+                        elapsed: 0,
+                        triggered: false,
+                        revealDuration: abilities.q.revealDuration
+                    };
+
+                    hero.activeTraps.push(spikeTrap);
+
+                    if (vfx) {
+                        vfx.burstEffect(targetX, targetY, "rgba(200, 100, 50, 0.7)", 15, 360, 0.6);
+                    }
+                }
+                break;
+
+            case "e":
+                // Trip Mine - Place slowing/rooting trap at location
+                if (targetX !== null && targetY !== null) {
+                    const tripMine = {
+                        type: "trip",
+                        x: targetX,
+                        y: targetY,
+                        rootDuration: abilities.e.rootDuration,
+                        radius: abilities.e.radius,
+                        duration: abilities.e.duration,
+                        elapsed: 0,
+                        triggered: false
+                    };
+
+                    hero.activeTraps.push(tripMine);
+
+                    if (vfx) {
+                        vfx.burstEffect(targetX, targetY, "rgba(100, 200, 100, 0.6)", 12, 360, 0.5);
+                    }
+                }
+                break;
+
+            case "r":
+                // Minefield - Deploy multiple mines in area
+                if (targetX !== null && targetY !== null) {
+                    const mineCount = abilities.r.mineCount;
+                    const angleStep = (Math.PI * 2) / mineCount;
+
+                    for (let i = 0; i < mineCount; i++) {
+                        const angle = i * angleStep;
+                        const distance = abilities.r.radius * 0.6; // Deploy at 60% of radius
+                        const mineX = targetX + Math.cos(angle) * distance;
+                        const mineY = targetY + Math.sin(angle) * distance;
+
+                        const mine = {
+                            type: "minefield",
+                            x: mineX,
+                            y: mineY,
+                            damage: abilities.r.damage(hero),
+                            stunDuration: abilities.r.stunDuration,
+                            radius: 200, // Each mine has smaller radius
+                            duration: abilities.r.duration,
+                            elapsed: 0,
+                            triggered: false
+                        };
+
+                        hero.activeTraps.push(mine);
+                    }
+
+                    if (vfx) {
+                        vfx.burstEffect(targetX, targetY, "rgba(255, 100, 100, 0.7)", 40, 360, 1.2);
+                    }
                 }
                 break;
         }
