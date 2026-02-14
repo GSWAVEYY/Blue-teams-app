@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>NEXUS - Competitive Arena</title>
+    <link rel="stylesheet" href="styles-pvp.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- MAIN MENU -->
+        <div id="main-menu" class="screen active">
+            <div class="menu-content">
+                <div class="logo">NEXUS</div>
+                <p class="tagline">Competitive Team Arena</p>
+
+                <div class="menu-buttons">
+                    <button class="btn-primary" onclick="showGameModes()">Play</button>
+                    <button class="btn-secondary" onclick="showHeroGallery()">Heroes</button>
+                    <button class="btn-secondary" onclick="window.location.href='hero-guide.html'">Guide</button>
+                    <button class="btn-secondary" onclick="showSettings()">Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME MODE SELECTION -->
+        <div id="game-mode-screen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" onclick="showMainMenu()">← Back</button>
+                <h1>Game Mode</h1>
+            </div>
+
+            <div class="game-modes">
+                <div class="mode-card" onclick="startGame('tdm', 5, 5)">
+                    <div class="mode-icon">⚔️</div>
+                    <h3>Team Deathmatch</h3>
+                    <p class="mode-info">5v5</p>
+                    <p class="mode-desc">First to 50 eliminations</p>
+                </div>
+
+                <div class="mode-card" onclick="startGame('tdm', 3, 3)">
+                    <div class="mode-icon">⚡</div>
+                    <h3>Quick Match</h3>
+                    <p class="mode-info">3v3</p>
+                    <p class="mode-desc">First to 30 eliminations</p>
+                </div>
+
+                <div class="mode-card" onclick="startGame('search', 5, 5)">
+                    <div class="mode-icon">💣</div>
+                    <h3>Search & Destroy</h3>
+                    <p class="mode-info">5v5</p>
+                    <p class="mode-desc">Plant or defuse bomb</p>
+                </div>
+
+                <div class="mode-card" onclick="startGame('koth', 3, 3)">
+                    <div class="mode-icon">👑</div>
+                    <h3>King of the Hill</h3>
+                    <p class="mode-info">3v3</p>
+                    <p class="mode-desc">Control the center zone</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- HERO SELECTION -->
+        <div id="hero-select-screen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" onclick="cancelHeroSelect()">← Cancel</button>
+                <h1>Select Your Hero</h1>
+                <div class="team-indicator" id="team-indicator">Team: Blue</div>
+            </div>
+
+            <div class="hero-grid" id="hero-grid">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div class="selected-hero-panel" id="selected-hero-panel">
+                <div class="hero-details" id="hero-details">Select a hero to view details</div>
+                <button class="btn-primary" id="confirm-hero-btn" onclick="confirmHeroSelection()" disabled>Confirm Hero</button>
+            </div>
+        </div>
+
+        <!-- HERO GALLERY -->
+        <div id="hero-gallery-screen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" onclick="showMainMenu()">← Back</button>
+                <h1>Hero Gallery</h1>
+            </div>
+
+            <div class="hero-gallery-grid" id="hero-gallery-grid">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+
+        <!-- TEAM LOBBY -->
+        <div id="team-lobby-screen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" onclick="cancelMatch()">← Cancel</button>
+                <h1 id="lobby-title">Team Lobby</h1>
+            </div>
+
+            <div class="lobby-container">
+                <div class="team-section" id="team-blue">
+                    <h2 class="team-name">Blue Team</h2>
+                    <div class="team-roster" id="blue-roster"></div>
+                </div>
+
+                <div class="team-section" id="team-red">
+                    <h2 class="team-name">Red Team</h2>
+                    <div class="team-roster" id="red-roster"></div>
+                </div>
+            </div>
+
+            <div class="lobby-footer">
+                <button class="btn-primary" id="ready-btn" onclick="toggleReady()">Ready Up</button>
+                <p id="match-status">Waiting for players...</p>
+            </div>
+        </div>
+
+        <!-- GAME SCREEN -->
+        <div id="game-screen" class="screen">
+            <canvas id="gameCanvas" width="1920" height="1080"></canvas>
+
+            <div class="hud-container">
+                <!-- Top HUD -->
+                <div class="hud-top">
+                    <div class="team-score" id="team-score">
+                        <span class="score-blue">0</span>
+                        <span class="score-divider">:</span>
+                        <span class="score-red">0</span>
+                    </div>
+                    <div class="game-timer" id="game-timer">10:00</div>
+                </div>
+
+                <!-- Player HUD (Bottom Left) -->
+                <div class="hud-player">
+                    <div class="player-avatar" id="player-avatar"></div>
+                    <div class="player-stats">
+                        <div class="health-bar">
+                            <div class="health-fill" id="health-fill" style="width: 100%"></div>
+                        </div>
+                        <div class="stats-text">
+                            <span id="health-text">100/100</span>
+                            <span id="level-text">Lvl 1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ability Panel (Bottom Right) -->
+                <div class="ability-panel">
+                    <div class="ability-slot" id="ability-q">
+                        <div class="ability-icon">Q</div>
+                        <div class="ability-cooldown" id="cd-q"></div>
+                    </div>
+                    <div class="ability-slot" id="ability-e">
+                        <div class="ability-icon">E</div>
+                        <div class="ability-cooldown" id="cd-e"></div>
+                    </div>
+                    <div class="ability-slot" id="ability-r">
+                        <div class="ability-icon">R</div>
+                        <div class="ability-cooldown" id="cd-r"></div>
+                    </div>
+                </div>
+
+                <!-- Control Overlay (Mobile) -->
+                <div class="control-overlay" id="control-overlay">
+                    <!-- Left Joystick -->
+                    <div class="joystick-container" id="left-joystick">
+                        <div class="joystick-base">
+                            <div class="joystick-stick"></div>
+                        </div>
+                    </div>
+
+                    <!-- Right Buttons -->
+                    <div class="button-panel">
+                        <div class="ability-button" data-ability="q">Q</div>
+                        <div class="ability-button" data-ability="e">E</div>
+                        <div class="ability-button" data-ability="r">R</div>
+                    </div>
+                </div>
+
+                <!-- Chat/Feed -->
+                <div class="game-feed" id="game-feed"></div>
+            </div>
+        </div>
+
+        <!-- SETTINGS SCREEN -->
+        <div id="settings-screen" class="screen">
+            <div class="screen-header">
+                <button class="btn-back" onclick="showMainMenu()">← Back</button>
+                <h1>Settings</h1>
+            </div>
+
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label>Master Volume</label>
+                    <input type="range" min="0" max="100" value="80">
+                </div>
+                <div class="setting-group">
+                    <label>Touch Sensitivity</label>
+                    <input type="range" min="1" max="10" value="5">
+                </div>
+                <div class="setting-group">
+                    <label>
+                        <input type="checkbox" checked>
+                        Haptic Feedback
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Order (IMPORTANT: Load in dependency order) -->
+    <script src="hero-system.js"></script>
+    <script src="pvp-ability-mechanics.js"></script>
+    <script src="pvp-vfx-system.js"></script>
+    <script src="pvp-element-system.js"></script>
+    <script src="pvp-weapon-database.js"></script>
+    <script src="pvp-weapon-system.js"></script>
+    <script src="pvp-personality-system.js"></script>
+    <script src="pvp-hero-info-ui.js"></script>
+    <script src="pvp-narrative-ui-integration.js"></script>
+    <script src="pvp-narrative-ui-hooks.js"></script>
+    <script src="pvp-pre-match-narrative.js"></script>
+    <script src="pvp-hero-selection-enhanced.js"></script>
+    <script src="pvp-professional-ui.js"></script>
+    <script src="pvp-cosmetics-system.js"></script>
+    <script src="pvp-audio-system.js"></script>
+    <script src="pvp-networking-system.js"></script>
+    <script src="pvp-match-sync-system.js"></script>
+    <script src="pvp-matchmaking-system.js"></script>
+    <script src="pvp-player-system.js"></script>
+    <script src="pvp-security-system.js"></script>
+    <script src="pvp-team-system.js"></script>
+    <script src="pvp-social-system.js"></script>
+    <script src="pvp-chat-system.js"></script>
+    <script src="pvp-spectator-system.js"></script>
+    <script src="pvp-team-matchmaking-system.js"></script>
+    <script src="pvp-tournament-system.js"></script>
+    <script src="pvp-seasonal-system.js"></script>
+    <script src="pvp-scrim-system.js"></script>
+    <script src="pvp-scrim-ui.js"></script>
+    <script src="pvp-game-state.js"></script>
+    <script src="pvp-ui-manager.js"></script>
+    <script src="pvp-arena.js"></script>
+    <script src="pvp-hero-instance.js"></script>
+    <script src="pvp-controls.js"></script>
+    <script src="pvp-match-engine.js"></script>
+    <script src="pvp-game.js"></script>
+</body>
+</html>
